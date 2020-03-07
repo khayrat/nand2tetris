@@ -16,5 +16,18 @@ CHIP PC {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // if      (reset[t] == 1) out[t+1] = 0
+    And16(a=false, b=false, out=reseted);
+    Mux16(a=inOrElse, b=reseted, sel=reset, out=resetOrElse);
+
+    // else if (load[t] == 1)  out[t+1] = in[t]
+    Mux16(a=incOrElse, b=in, sel=load, out=inOrElse);
+
+    // else if (inc[t] == 1)   out[t+1] = out[t] + 1  (integer addition)
+    // else                    out[t+1] = out[t]
+    Inc16(in=rout, out=incout);
+    Mux16(a=rout, b=incout, sel=inc, out=incOrElse);
+
+    Register(in=resetOrElse, load=true, out=rout);
+    And16(a=rout, b=true, out=out);
 }
