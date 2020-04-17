@@ -44,6 +44,7 @@ CHIP CPU {
     // in case of A-OP, the 'instruction' is an address and should be loaded to A
     // otherwise its C-OP i.e. an instruction and not loaded in to A but further processed as C-bits
     Mux16(a=instruction, b=fromALU, sel=instruction[15], out=AorALU);
+
     // A register
     Not(in=instruction[15], out=AOP);
     Or(a=AOP, b=instruction[5], out=loadA);
