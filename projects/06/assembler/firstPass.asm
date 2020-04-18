@@ -1,0 +1,10 @@
+@i
+(loop)
+ D
+@END
+M
+@4711
+@sum
+0;JMP
+(END)
+  D=0
