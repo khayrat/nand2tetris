@@ -1,5 +1,0 @@
-push local 1
-push constant 1 // a comment
-add
-pop argument 1
-push foo 2
