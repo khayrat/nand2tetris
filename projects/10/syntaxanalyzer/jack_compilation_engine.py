@@ -196,47 +196,44 @@ class CompilationEngine:
 
        self.end('doStatement')
 
-    # Todo: handle the action guard: expression? 
     def compileReturn(self):
+       t = self.tokenizer
        self.begin('returnStatement')
 
        self.process('return')
 
-       self.compileExpression()
-       self.process(';')
+       if t.tokenType() == JackTockenizer.SYMBOL and t.symbol() == ';':
+         self.process(';')
+       else:
+         self.compileExpression()
+         self.process(';')
 
        self.end('returnStatement')
     
-    def compileExpression(self, action=True):
+    def compileExpression(self):
         t = self.tokenizer
-        if action:
-         self.begin('expression')
+        self.begin('expression')
 
         # term (op term)*
-        self.compileTerm(action=action)
+        self.compileTerm()
 
         op = ['+', '-', '*', '/', '&', '|', '<', '>', '=']
         while t.tokenType() == JackTockenizer.SYMBOL and t.symbol() in op:
-           self.process(t.symbol(), action=action)
-           self.compileTerm(action=action)
+           self.process(t.symbol())
+           self.compileTerm()
 
-        if action:
-           self.end('expression')
+        self.end('expression')
 
-    def compileTerm(self, action=True):
+    def compileTerm(self):
       t = self.tokenizer
       type = t.tokenType()
-      if action:
-         self.begin('term')
+      self.begin('term')
 
       if type == JackTockenizer.INT_CONST:
          self.process(str(t.intVal()))
-         self.foundTerm = True
       elif type == JackTockenizer.STRING_CONST:
          self.process(t.stringVal())
-         self.foundTerm = True
       elif type == JackTockenizer.KEYWORD:
-         self.foundTerm = True
          k = t.keyWord()
          # keywordConstant
          assert k in ['true', 'false', 'null', 'this']
@@ -246,16 +243,13 @@ class CompilationEngine:
         s = t.symbol()
         # '(' expression ')' | (unaryOp term)
         if s == '(':
-           self.foundTerm = True
            self.process('(')
            self.compileExpression()
            self.process(')')
         elif s in ['-', '~']:
-          self.foundTerm = True
           self.process(s)
           self.compileTerm()
       elif type == JackTockenizer.IDENTIFIER:
-         self.foundTerm = True
          # varName | varName '[' expression ']' | subroutineCall
          # varName: identifier
          # subroutineCall: identifier '(' ... | identifier '.' ...
@@ -277,18 +271,22 @@ class CompilationEngine:
                self.compileExpressionList()
                self.process(')')
 
-      if action:
-         self.end('term')
+      self.end('term')
 
     # return the number of expressions in the list.
     def compileExpressionList(self):
        expressions = 0
        t = self.tokenizer
        self.begin('expressionList')
+
+       # lookup if we have an expression at all
+       if t.tokenType() == JackTockenizer.SYMBOL and t.symbol() == ')':
+          self.end('expressionList')
+          return 0
+
+       expressions += 1
        self.compileExpression()
-       if self.foundTerm:
-         expressions += 1
-         self.foundTerm = False
+       self.foundTerm = False
 
        while t.tokenType() == JackTockenizer.SYMBOL and t.symbol() == ',':
           self.process(',')
