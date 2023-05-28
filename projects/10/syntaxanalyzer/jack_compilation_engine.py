@@ -304,7 +304,10 @@ class CompilationEngine:
         self.printToken("identifier", self.tokenizer.identifier())
 
     def printSymbol(self):
-        self.printToken("symbol", self.tokenizer.symbol())
+        symbol = self.tokenizer.symbol()
+        if symbol in CompilationEngine.special_symbols:
+         symbol = CompilationEngine.special_symbols[symbol]
+        self.printToken("symbol", symbol)
 
     def printInt(self):
         self.printToken("integerConstant", str(self.tokenizer.intVal()))
@@ -360,4 +363,11 @@ class CompilationEngine:
        'while': compileWhile,
        'do': compileDo,
        'return': compileReturn,
-    }    
+    }   
+
+    special_symbols = {
+      '>': '&gt;',
+      '<': '&lt;',
+      '&': '&amp;',
+      '"': '&quot;',
+    } 
