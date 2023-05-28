@@ -1,0 +1,47 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/01/And16.hdl
+
+/**
+ * 16-bit bitwise Eq:
+ * out = 1 if for i = 0..15: = (a[i] eq b[i])
+ */
+
+CHIP Eq16red {
+    IN a[16], b[16];
+    OUT out;
+
+    PARTS:
+    Eq(a=a[0], b=b[0], out=o0);
+    Eq(a=a[1], b=b[1], out=o1);
+    Eq(a=a[2], b=b[2], out=o2);
+    Eq(a=a[3], b=b[3], out=o3);
+    Eq(a=a[4], b=b[4], out=o4);
+    Eq(a=a[5], b=b[5], out=o5);
+    Eq(a=a[6], b=b[6], out=o6);
+    Eq(a=a[7], b=b[7], out=o7);
+    Eq(a=a[8], b=b[8], out=o8);
+    Eq(a=a[9], b=b[9], out=o9);
+    Eq(a=a[10], b=b[10], out=o10);
+    Eq(a=a[11], b=b[11], out=o11);
+    Eq(a=a[12], b=b[12], out=o12);
+    Eq(a=a[13], b=b[13], out=o13);
+    Eq(a=a[14], b=b[14], out=o14);
+    Eq(a=a[15], b=b[15], out=o15);
+    And(a=o0, b=o1, out=r1);
+    And(a=r1, b=o2, out=r2);
+    And(a=r2, b=o3, out=r3);
+    And(a=r3, b=o4, out=r4);
+    And(a=r4, b=o5, out=r5);
+    And(a=r5, b=o6, out=r6);
+    And(a=r6, b=o7, out=r7);
+    And(a=r7, b=o8, out=r8);
+    And(a=r8, b=o9, out=r9);
+    And(a=r9, b=o10, out=r10);
+    And(a=r10, b=o11, out=r11);
+    And(a=r11, b=o12, out=r12);
+    And(a=r12, b=o13, out=r13);
+    And(a=r13, b=o14, out=r14);
+    And(a=r14, b=o15, out=out);
+}
