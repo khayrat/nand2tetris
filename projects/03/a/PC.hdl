@@ -16,18 +16,16 @@ CHIP PC {
     OUT out[16];
 
     PARTS:
-    // if      (reset[t] == 1) out[t+1] = 0
-    And16(a=false, b=false, out=reseted);
-    Mux16(a=inOrElse, b=reseted, sel=reset, out=resetOrElse);
-
-    // else if (load[t] == 1)  out[t+1] = in[t]
-    Mux16(a=incOrElse, b=in, sel=load, out=inOrElse);
-
-    // else if (inc[t] == 1)   out[t+1] = out[t] + 1  (integer addition)
-    // else                    out[t+1] = out[t]
-    Inc16(in=rout, out=incout);
-    Mux16(a=rout, b=incout, sel=inc, out=incOrElse);
-
-    Register(in=resetOrElse, load=true, out=rout);
-    And16(a=rout, b=true, out=out);
+    /* laod */
+    Or(a=load, b=inc, out=l1);
+    Or(a=l1, b=reset, out=l2);
+    /* zero */
+    Not16(in=true, out=zero);
+    /* inc */
+    Inc16(in=rout, out=outinc);
+    /* select based on priority table */
+    Mux8Way16(a=rout, b=outinc, c=in, d=in, e=zero, f=zero, g=zero, h=zero, sel[0]=inc, sel[1]=load, sel[2]=reset, out=rin);
+    // get and set current register content
+    Register(in=rin, load=l2, out=rout);
+    And16(a=rout, b=rout, out=out);
 }
