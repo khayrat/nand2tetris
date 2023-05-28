@@ -13,7 +13,7 @@ CHIP FullAdder {
         carry;   // Left bit of a + b + c
 
     PARTS:
-    HalfAdder(a=c, b=a, sum=sum1, carry=carry1);
-    HalfAdder(a=sum1, b=b, sum=sum, carry=carry2);
-    Or(a=carry1, b=carry2, out=carry);
+    HalfAdder(a=a, b=b, sum=s, carry=d); // s=LSB(a+b)
+    HalfAdder(a=s, b=c, sum=sum, carry=e); // sum=LSB(LSB(a+b) + c)
+    Xor(a=e, b=d, out=carry);
 }
