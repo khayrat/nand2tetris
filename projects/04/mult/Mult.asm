@@ -6,54 +6,45 @@
 // Multiplies R0 and R1 and stores the result in R2.
 // (R0, R1, R2 refer to RAM[0], RAM[1], and RAM[2], respectively.)
 
-// Put your code here.
+// n = 0
+@n
+M=0
 
-//a = R0
-@R0
-D=M
-@a
-M=D
-
-//b = R1
-@R1
-D=M
-@b
-M=D
-
-//prod = 0
+// prod = 0
 @prod
 M=0
 
-//LOOP:
 (LOOP)
-  //  if b == 0 goto STOP
-  @b
+  // if (n == R1) goto STOP
+  @n
   D=M
+  @R1
+  D=D-M
   @STOP
   D;JEQ
 
-  //  prod = prod + a
-  @a
-  D=M
+  // prod = prod + R0
   @prod
-  M=M+D
+  D=M
+  @R0
+  D=D+M
+  @prod
+  M=D
 
-  //  b = b - 1
-  @b
-  M=M-1
+  // n = n + 1
+  @n
+  M=M+1
 
-  //  goto LOOP
+  // goto LOOP
   @LOOP
-  D;JMP
+  0;JMP
 
-//STOP:
 (STOP)
-  //  R2 = prod
+  // R2 = prod
   @prod
   D=M
   @R2
   M=D
-
 (END)
   @END
-  0;JMP 
+  0;JMP

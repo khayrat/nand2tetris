@@ -11,74 +11,61 @@
 // "white" in every pixel;
 // the screen should remain fully clear as long as no key is pressed.
 
-// target = @SCREEN + 8192
-@SCREEN
-D=A
-@8192
-D=D+A
-@target
-M=D
+// rows = 512
+@rows
+M=512
 
-// current = @SCREEN
-@SCREEN
-D=A
-@current
-M=D
-
-// mode = off
-@mode
-M=-1
-
-(DISPLAY)
-// if (current == target) goto KEYHANDLER
-@current
-D=M
-@target
-D=D-M
-@KEYHANDLER
-D;JEQ
-
-// draw @SCREEN + ram
-@mode
-D=M
-@current
-A=M
-M=D
-
-// current = current + 1
-@current
-M=M+1
-
-// goto DISPLAY
-@DISPLAY
-0;JMP
-
-(KEYHANDLER)
-// if (not key-pressed) goto CLEAR
-@KBD
-D=M
-@CLEAR
-D;JEQ
-
-// fill black
-@mode
-M=-1
-
-// goto reset
-@RESET
-0;JMP
-
-(CLEAR)
-// fill white
-@mode
+// row = 0
+@row
 M=0
 
-(RESET)
-// current = @SCREEN
+// cols = 32
+@cols
+M=32
+
+// init-screen
 @SCREEN
-D=A
-@current
-M=D
-// goto display
-@DISPLAY
+
+(ROW)
+// col = 0
+@col
+M=0
+
+(NEXTCOL)
+// if (col == cols) goto NEXTROW
+@col
+D=M
+@cols
+D=D-M
+D;JEQ,NEXTROW
+
+// draw-col
+M=-1
+
+// col = col + 1
+@col
+M=M+1
+
+// goto NEXTCOL
+@NEXTCOL
+0;JMP
+
+(NEXTROW)
+// if (row == rows) goto END
+@row
+D=M
+@rows
+D=D-M
+D;JEQ,END
+
+// row = row + 1
+@row
+M=M+1
+
+// goto ROW
+@ROW
+0;JMP
+
+(END)
+@END
 0;JMP
