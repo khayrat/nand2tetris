@@ -17,7 +17,7 @@ class CompilationEngine:
         self.process('{')
         while (self.compileClassVarDec()): pass
         while (self.compileSubroutineDec()): pass
-       # self.process('}')
+        self.process('}')
         
         self.end("class")
 
@@ -36,12 +36,13 @@ class CompilationEngine:
             self.begin("subroutineDec")
             self.process(t.keyWord())
 
-            # void | type
-            if t.tokenType() == JackTockenizer.KEYWORD: self.process("void")
+            # 'void' | type
+            if t.tokenType() == JackTockenizer.KEYWORD and t.keyWord() == 'void': 
+               self.process('void')
             else:
-                assert t.tokenType() == JackTockenizer.IDENTIFIER
-                self.process(t.identifier())
-                
+               self.processType()
+
+            # varName        
             assert t.tokenType() == JackTockenizer.IDENTIFIER
             self.process(t.identifier())
 
@@ -55,79 +56,287 @@ class CompilationEngine:
         return found
         
     def compileParameterList(self):
+      t = self.tokenizer
       self.begin("parameterList")
+      # ((type varName) (',' type varName)*)?
+      if t.tokenType() != JackTockenizer.SYMBOL: # if its not ')' it must be a type
+        self.processType()
+        assert t.tokenType() == JackTockenizer.IDENTIFIER
+        self.process(t.identifier())
+
+        # (',' type varName)*
+        while t.symbol() == ',':
+          assert t.tokenType == JackTockenizer.SYMBOL
+          self.process(',')
+          self.processType()
+          assert t.tokenType() == JackTockenizer.IDENTIFIER
+          self.process(t.identifier())
+
       self.end("parameterList")
+
+    def processType(self):
+       t = self.tokenizer
+       if t.tokenType() == JackTockenizer.KEYWORD:
+          assert t.keyWord() in ['int', 'char', 'boolean']
+          self.process(t.keyWord())
+       else:
+          assert t.tokenType() == JackTockenizer.IDENTIFIER
+          self.process(t.identifier())
     
     def compileSubroutineBody(self):
+      t = self.tokenizer
       self.begin("subroutineBody")
 
       self.process('{')
-      while self.compileVarDec(): pass
+
+      # varDec*
+      while t.tokenType() == JackTockenizer.KEYWORD and t.keyWord() == 'var':
+         self.compileVarDec()
+
       self.compileStatements()
-      #self.process('}')
+
+      self.process('}')
 
       self.end("subroutineBody")
-    
+
     def compileStatements(self):
+      t = self.tokenizer
+
       self.begin("statements")
+
+      while t.tokenType() == JackTockenizer.KEYWORD:
+        k = t.keyWord()
+        assert k in ['let', 'if', 'while', 'do', 'return']
+        CompilationEngine.statement_map[k](self)
+        
       self.end("statements")
 
     def compileVarDec(self):
+      t = self.tokenizer
       self.begin("varDec")
+
+      self.process('var')
+      self.processType()
+      assert t.tokenType() == JackTockenizer.IDENTIFIER
+      self.process(t.identifier())
+
+      # (',' varName)*
+      while t.tokenType() == JackTockenizer.SYMBOL and t.symbol() == ',':
+         self.process(',')
+         assert t.tokenType() == JackTockenizer.IDENTIFIER
+         self.process(t.identifier())
+
+      self.process(';')
+
       self.end("varDec")
     
     def compileLet(self):
-        pass
+      t = self.tokenizer
+      self.begin('letStatement')
+
+      self.process('let')
+      assert t.tokenType() == JackTockenizer.IDENTIFIER
+      self.process(t.identifier())
+
+      # ('[' expression ']')?
+      if t.tokenType() == JackTockenizer.SYMBOL and t.symbol() == '[':
+        self.process('[')
+        self.compileExpression()
+        self.process(']')
+
+      self.process('=')
+      self.compileExpression()
+      self.process(';')
     
+      self.end('letStatement')
+
     def compileIf(self):
-        pass
+       self.begin('ifStatement')
+
+       self.process('if')
+       self.process('(')
+       self.compileExpression()
+       self.process(')')
+
+       self.process('{')
+       self.compileStatements()
+       self.process('}')
+
+       self.process('else')
+
+       self.process('{')
+       self.compileStatements()
+       self.process('}')
+
+       self.end('ifStatement')
     
     def compileWhile(self):
-        pass
+       t = self.tokenizer
+       self.begin('whileStatement')
+
+       self.process('while')
+
+       self.process('(')
+       self.compileExpression()
+       self.process(')')
+
+       self.process('{')
+       self.compileStatements()
+       self.process('}')
+    
+       self.end('whileStatement')
     
     def compileDo(self):
-        pass
-    
+       t = self.tokenizer
+       self.begin('doStatement')
+
+       self.process('do')
+       self.processSubroutineCall()
+       self.process(';')
+
+       self.end('doStatement')
+
+    # Todo: handle the action guard: expression? 
     def compileReturn(self):
-        pass
+       self.begin('returnStatement')
+
+       self.process('return')
+
+       self.compileExpression()
+       self.process(';')
+
+       self.end('returnStatement')
     
-    def compileExpression(self):
-        pass
-    
-    def compileTerm(self):
-        pass
+    def compileExpression(self, action=True):
+        t = self.tokenizer
+        if action:
+         self.begin('expression')
+
+        # term (op term)*
+        self.compileTerm(action=action)
+
+        op = ['+', '-', '*', '/', '&', '|', '<', '>', '=']
+        while t.tokenType() == JackTockenizer.SYMBOL and t.symbol() in op:
+           self.process(t.symbol(), action=action)
+           self.compileTerm(action=action)
+
+        if action:
+           self.end('expression')
+
+    def compileTerm(self, action=True):
+      t = self.tokenizer
+      type = t.tokenType()
+      if action:
+         self.begin('term')
+
+      if type == JackTockenizer.INT_CONST:
+         self.process(str(t.intVal()))
+         self.foundTerm = True
+      elif type == JackTockenizer.STRING_CONST:
+         self.process(t.stringVal())
+         self.foundTerm = True
+      elif type == JackTockenizer.KEYWORD:
+         self.foundTerm = True
+         k = t.keyWord()
+         # keywordConstant
+         assert k in ['true', 'false', 'null', 'this']
+         self.process(k)
+         self.compileTerm()
+      elif type == JackTockenizer.SYMBOL:
+        s = t.symbol()
+        # '(' expression ')' | (unaryOp term)
+        if s == '(':
+           self.foundTerm = True
+           self.process('(')
+           self.compileExpression()
+           self.process(')')
+        elif s in ['-', '~']:
+          self.foundTerm = True
+          self.process(s)
+          self.compileTerm()
+      elif type == JackTockenizer.IDENTIFIER:
+         self.foundTerm = True
+         # varName | varName '[' expression ']' | subroutineCall
+         # varName: identifier
+         # subroutineCall: identifier '(' ... | identifier '.' ...
+         self.process(t.identifier())
+         if t.tokenType() == JackTockenizer.SYMBOL:
+            if t.symbol() == '[':
+               self.process('[')
+               self.compileExpression()
+               self.process(']')
+            elif t.symbol() == '(':
+               self.process('(')
+               self.compileExpressionList()
+               self.process(')')
+            elif t.symbol() == '.':
+               self.process('.')
+               assert t.tokenType() == JackTockenizer.IDENTIFIER
+               self.process(t.identifier())
+               self.process('(')
+               self.compileExpressionList()
+               self.process(')')
+
+      if action:
+         self.end('term')
 
     # return the number of expressions in the list.
     def compileExpressionList(self):
-        pass
-    
-    def compileReturn(self):
-        pass
-    
+       expressions = 0
+       t = self.tokenizer
+       self.begin('expressionList')
+       self.compileExpression()
+       if self.foundTerm:
+         expressions += 1
+         self.foundTerm = False
 
+       while t.tokenType() == JackTockenizer.SYMBOL and t.symbol() == ',':
+          self.process(',')
+          self.compileExpression()
+          expressions += 1
+
+       self.end('expressionList')
+       return expressions
+    
 #### helper
-    def printKeyWord(self, token):
-        self.printToken("keyword", token.lexeme)
+    def printKeyWord(self):
+        self.printToken("keyword", self.tokenizer.keyWord())
 
-    def printIdentifier(self, token):
-        self.printToken("identifier", token.lexeme)
+    def printIdentifier(self):
+        self.printToken("identifier", self.tokenizer.identifier())
 
-    def printSymbol(self, token):
-        self.printToken("symbol", token.lexeme)
+    def printSymbol(self):
+        self.printToken("symbol", self.tokenizer.symbol())
 
-    emitt_map = {
-        JackTockenizer.KEYWORD: printKeyWord,
-        JackTockenizer.IDENTIFIER: printIdentifier,
-        JackTockenizer.SYMBOL: printSymbol,
-    }
+    def printInt(self):
+        self.printToken("integerConstant", str(self.tokenizer.intVal()))
+
+    def printString(self):
+        self.printToken("stringConstant", self.tokenizer.stringVal())
+
+    def processSubroutineCall(self):
+      t = self.tokenizer
+      # subroutineCall: identifier '(' ... | identifier '.' ...
+      self.process(t.identifier())
+      assert t.tokenType() == JackTockenizer.SYMBOL
+      if t.symbol() == '(':
+          self.process('(')
+          self.compileExpressionList()
+          self.process(')')
+      elif t.symbol() == '.':
+          self.process('.')
+          assert t.tokenType() == JackTockenizer.IDENTIFIER
+          self.process(t.identifier())
+          self.process('(')
+          self.compileExpressionList()
+          self.process(')')
 
     def process(self, lexeme):
         token = self.tokenizer.currentToken
         assert token.lexeme == lexeme
 
-        CompilationEngine.emitt_map[token.type](self, token)
-
-        self.tokenizer.advance()
+        CompilationEngine.emitt_map[token.type](self)
+        if self.tokenizer.hasMoreTokens(): self.tokenizer.advance()
 
     def printToken(self, type, lexeme, padding=0):
       self.fout.write(padding * ' ')
@@ -138,3 +347,19 @@ class CompilationEngine:
 
     def end(self, s, padding=0):
       self.fout.write(padding * ' ' + '</' + s + '>\n')
+
+    emitt_map = {
+        JackTockenizer.KEYWORD: printKeyWord,
+        JackTockenizer.IDENTIFIER: printIdentifier,
+        JackTockenizer.SYMBOL: printSymbol,
+        JackTockenizer.INT_CONST: printInt,
+        JackTockenizer.STRING_CONST: printString,
+    }
+
+    statement_map = {
+       'let': compileLet,
+       'if': compileIf,
+       'while': compileWhile,
+       'do': compileDo,
+       'return': compileReturn,
+    }    
