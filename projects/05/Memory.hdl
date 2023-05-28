@@ -27,21 +27,25 @@ CHIP Memory {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // propagate laod to ram or io?
+    DMux(in=load, sel=address[14], a=ram, b=io);
    
-    // The 2 MSB: 00 or 01: ram
-    //            01:       screen
-    //            11;       keyboard 
-    DMux4Way(in=load,
-             sel=address[13..14],
-             a=l1, b=l2, c=l3, d=l4);
-    Or(a=l1, b=l2, out=loadram);
+    // forward load to ram 
+    RAM16K(in=in, load=ram, address=address[0..13], out=ramOut);
 
-    RAM16K(in=in, load=loadram, address=address[0..13], out=ram);
-    Screen(in=in, load=l3, address=address[0..12], out=screen);
-    Keyboard(out=kbd);
-    
-    Mux4Way16(a=ram, b=ram, c=screen, d=kbd,
-              sel=address[13..14],
-              out=out); 
+    // screen or keyboard? - due to the address-scheme 
+    // this bit is only set when kbd is addressed.
+    DMux(in=io, sel=address[13], a=screen, b=kbd);
+
+    // get screen and forwad load
+    Screen(in=in, address=address[0..12], load=screen, out=screenOut);
+
+    // get keyboard
+    Keyboard(out=kbdOut);
+
+    // output screen or keyboard?
+    Mux16(a=screenOut, b=kbdOut, sel=address[13], out=ioOut);
+
+    // output ram or io?
+    Mux16(a=ramOut, b=ioOut, sel=address[14], out=out);
 }
