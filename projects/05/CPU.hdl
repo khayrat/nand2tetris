@@ -39,101 +39,51 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-    // Put your code here:
+    // instruction[15] determines if the insturction is 'c' (if instruction[15]==1) or 'a' (==0)
+    // only a-instructions are passed to A; c-instructions are decoded instantly and not stored anywere.
+    // c-> ain:=ALU-out, a-> ain:=instruction[0..14]
+    Mux16(a[0..14]=instruction[0..14], a[15]=false, b=aluout, sel=instruction[15], out=ain);
 
-    // in case of A-OP, the 'instruction' is an address and should be loaded to A
-    // otherwise its C-OP i.e. an instruction and not loaded in to A but further processed as C-bits
-    Mux16(a=instruction, b=fromALU, sel=instruction[15], out=AorALU);
+    /* A */
+    // A is updated if (c-instruction and d1==1) or a-instruction
+    Not(in=instruction[15], out=aInstr);
+    Or(a=instruction[5], b=aInstr, out=d1OrA);
+    ARegister(in=ain, load=d1OrA, out=aout);
 
-    // A register
-    Not(in=instruction[15], out=AOP);
-    Or(a=AOP, b=instruction[5], out=loadA);
-    Register(in=AorALU, load=loadA, out=fromA);
 
-    // In case of a C-OP, the singe a-bit determines whether the ALU will operate 
-    // on the A register input or the M input.
-    // if (C-OP && a-bit) then sel=0 else 1
-    And(a=instruction[15], b=instruction[12], out=AorM);
-    Mux16(a=fromA, b=inM, sel=AorM, out=toALU);
+    /* Mux */
+    Mux16(a=aout, b=inM, sel=instruction[12], out=am);
 
-    // register D
-    And(a=instruction[15], b=instruction[4], out=loadD);
-    Register(in=fromALU, load=loadD, out=fromD);
+    /* D */
+    // d is updated if d2==1 and c-instruction
+    And(a=instruction[4], b=instruction[15], out=CAndd2);
+    DRegister(in=aluout, load=CAndd2, out=dout);
 
-    ALU(x=fromD, y=toALU, 
-        zx=instruction[11],
-        nx=instruction[10],
-        zy=instruction[9],
-        ny=instruction[8],
-        f=instruction[7],
-        no=instruction[6],
-        out=fromALU,
-        zr=zr,
-        ng=ng);
+    /* ALU */
+    ALU(x=dout, y=am, zx=instruction[11], nx=instruction[10], zy=instruction[9], ny=instruction[8], f=instruction[7], no=instruction[6], out=aluout,zr=zrout, ng=ngout);
 
-    // OUT: writeM
-    And(a=instruction[15], b=instruction[3], out=writeM);
+    // aluout -> outM
+    And16(a=aluout, b=aluout, out=outM);
 
-    // OUT: addressM
-    And16(a=fromA, b=true, out[0..14]=addressM);
+    // aout-> addressM
+    And16(a=aout, b=aout, out[0..14]=addressM); 
 
-    // OUT: outM
-    And16(a=fromALU, b=true, out=outM);
+    // writeM
+    Mux(a=false, b=true, sel=instruction[3], out=w); // M=d3?
+    And(a=instruction[15], b=w, out=writeM);         // C-Instr.?
 
-    // PC load controls
-  
-    // the load is determined by examining the ALU's Cs outputs - see p.69 of doc 04.pdf
-    // JMP: j1 and j2 and j3 == 1
-    And(a=instruction[2], b=instruction[1], out=jmptmp);
-    And(a=jmptmp, b=instruction[0], out=jmp);
-
-    // JLE: j1 and j2 and not(j3) and (ng or zr) - alu-out <= 0
-    Not(in=instruction[0], out=notj3);
-    And(a=instruction[2], b=instruction[1], out=j1andj2);
-    And(a=j1andj2, b=notj3, out=jletmp);
-    Or(a=zr, b=ng, out=lez);
-    And(a=jletmp, b=lez, out=jle);
-
-    // JNE: j1 and not(j2) and j3 and not(zr) - alu-out != 0
-    Not(in=instruction[1], out=notj2);
-    And(a=instruction[2], b=instruction[0], out=j1andj3);
-    And(a=j1andj3, b=notj2, out=jnetmp);
-    Not(in=zr, out=notzr);
-    And(a=jnetmp, b=notzr, out=jne);
-
-    // JLT: j1 and not(j2) and not(j3) and ng - alu-out < 0
-    And(a=notj2, b=notj3, out=notj2andnotj3);
-    And(a=instruction[2], b=notj2andnotj3, out=jlttmp);
-    And(a=notzr, b=ng, out=lt);
-    And(a=jlttmp, b=lt, out=jlt);
-
-    // JGE: j2 and j3 and not(j1) and (zr or not(ng)) - alu-out >= 0
-    Not(in=instruction[2], out=notj1);
-    And(a=instruction[1], b=instruction[0], out=j2andj3);
-    And(a=j2andj3, b=notj1, out=jgetmp);
-    Not(in=ng, out=notng);
-    Or(a=zr, b=notng, out=get);
-    And(a=jgetmp, b=get, out=jge);
-
-    // JEQ: j2 and not(j1) and not(j3) and zr - alu-out = 0
-    And(a=notj1, b=notj3, out=notj1andnotj3);
-    And(a=instruction[1], b=notj1andnotj3, out=jeqtmp);
-    And(a=jeqtmp, b=zr, out=jeq);
-
-    // JGT: j3 and not(j1) and not(j2) and not(ng)
-    And(a=notj1, b=notj2, out=notj1andnotj2);
-    And(a=instruction[0], b=notj1andnotj2, out=jgttmp);
-    And(a=notzr, b=notng, out=gt);
-    And(a=jgttmp, b=gt, out=jgt);
-  
-    Or(a=jmp, b=jle, out=j1); 
-    Or(a=j1, b=jne, out=j2); 
-    Or(a=j2, b=jlt, out=j3); 
-    Or(a=j3, b=jge, out=j4); 
-    Or(a=j4, b=jeq, out=j5); 
-    Or(a=j5, b=jgt, out=j6); 
-
-    And(a=instruction[15], b=j6, out=loadpc); 
-
-    PC(in=fromA, load=loadpc, inc=true, reset=reset, out[0..14]=pc);
+    /* PC */
+    // j1 && ng
+    And(a=instruction[2], b=ngout, out=l1);
+    // j2 && zr
+    And(a=instruction[1], b=zrout, out=l2);
+    // j3 && aout > 0
+    Or(a=ngout, b=zrout, out=ngorzr);
+    Not(in=ngorzr, out=grz);
+    And(a=instruction[0], b=grz, out=l3);
+    // load=and(c-instruction, or(or(l1,l2), l3));
+    Or(a=l1, b=l2, out=l12);
+    Or(a=l12, b=l3, out=l123);
+    And(a=instruction[15], b=l123, out=lpc);
+    PC(in=aout, load=lpc, inc=true, reset=reset, out[0..14]=pc);
 }
