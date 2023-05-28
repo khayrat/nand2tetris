@@ -9,51 +9,63 @@ class CompilationEngine:
         self.tokenizer.advance()
     
     def compileClass(self):
-        tokenizer = self.tokenizer
+        t = self.tokenizer
         self.begin("class")
         self.process("class")
-        self.process(tokenizer.identifier())
+        self.process(t.identifier())
 
         self.process('{')
-        while (self.compileClassVarDec()): pass
-        while (self.compileSubroutineDec()): pass
+
+        while t.tokenType() == JackTockenizer.KEYWORD and t.keyWord() in ['static', 'field']:
+         self.compileClassVarDec()
+
+        while t.tokenType() == JackTockenizer.KEYWORD and t.keyWord() in ['constructor', 'function', 'method']:
+         self.compileSubroutineDec()
+
         self.process('}')
         
         self.end("class")
 
     def compileClassVarDec(self):
-        found = False
+        self.begin("classVarDec")
         t = self.tokenizer
-        if t.tokenType() == JackTockenizer.KEYWORD and t.keyWord() in ['static', 'filed']:
-            found = True 
-        return found
+
+        self.process(t.keyWord())
+        self.processType()
+        assert t.tokenType() == JackTockenizer.IDENTIFIER
+        self.process(t.identifier())
+
+        while t.tokenType() == JackTockenizer.SYMBOL and t.symbol() == ',':
+           self.process(',')
+           assert t.tokenType() == JackTockenizer.IDENTIFIER
+           self.process(t.identifier())
+
+        self.process(';')
+
+        self.end("classVarDec")
         
     def compileSubroutineDec(self):
-        found = False
         t = self.tokenizer
-        if t.tokenType() == JackTockenizer.KEYWORD and t.keyWord() in ['contructor', 'function', 'method']:
-            found = True 
-            self.begin("subroutineDec")
-            self.process(t.keyWord())
+        self.begin("subroutineDec")
+        self.process(t.keyWord())
 
-            # 'void' | type
-            if t.tokenType() == JackTockenizer.KEYWORD and t.keyWord() == 'void': 
-               self.process('void')
-            else:
-               self.processType()
+        # 'void' | type
+        if t.tokenType() == JackTockenizer.KEYWORD and t.keyWord() == 'void': 
+           self.process('void')
+        else:
+           self.processType()
 
-            # varName        
-            assert t.tokenType() == JackTockenizer.IDENTIFIER
-            self.process(t.identifier())
+        # varName        
+        assert t.tokenType() == JackTockenizer.IDENTIFIER
+        self.process(t.identifier())
 
-            self.process('(')
-            self.compileParameterList()
-            self.process(')')
+        self.process('(')
+        self.compileParameterList()
+        self.process(')')
 
-            self.compileSubroutineBody()
+        self.compileSubroutineBody()
 
-            self.end("subroutineDec")
-        return found
+        self.end("subroutineDec")
         
     def compileParameterList(self):
       t = self.tokenizer
@@ -66,7 +78,7 @@ class CompilationEngine:
 
         # (',' type varName)*
         while t.symbol() == ',':
-          assert t.tokenType == JackTockenizer.SYMBOL
+          assert t.tokenType() == JackTockenizer.SYMBOL
           self.process(',')
           self.processType()
           assert t.tokenType() == JackTockenizer.IDENTIFIER
