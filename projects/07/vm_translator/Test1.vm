@@ -1,0 +1,13 @@
+push constant 1
+push constant 2
+add
+push constant 2
+call test 4
+call f2 4 20 
+return
+function test 3 4
+function test1 1 2 3 4 
+function test2
+label end
+goto end
+if-goto end
