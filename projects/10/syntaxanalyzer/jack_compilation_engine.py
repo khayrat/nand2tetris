@@ -163,6 +163,7 @@ class CompilationEngine:
       self.end('letStatement')
 
     def compileIf(self):
+       t = self.tokenizer
        self.begin('ifStatement')
 
        self.process('if')
@@ -174,11 +175,12 @@ class CompilationEngine:
        self.compileStatements()
        self.process('}')
 
-       self.process('else')
-
-       self.process('{')
-       self.compileStatements()
-       self.process('}')
+       # (else '{' statement '}')?
+       if t.tokenType() == JackTockenizer.KEYWORD and t.keyWord() == 'else':
+         self.process('else')
+         self.process('{')
+         self.compileStatements()
+         self.process('}')
 
        self.end('ifStatement')
     
@@ -250,7 +252,10 @@ class CompilationEngine:
          # keywordConstant
          assert k in ['true', 'false', 'null', 'this']
          self.process(k)
-         self.compileTerm()
+         op = ['+', '-', '*', '/', '&', '|', '<', '>', '=']
+         if t.tokenType() == JackTockenizer.SYMBOL and t.symbol() in op:
+            self.process(t.symbol())
+            self.compileTerm()
       elif type == JackTockenizer.SYMBOL:
         s = t.symbol()
         # '(' expression ')' | (unaryOp term)
