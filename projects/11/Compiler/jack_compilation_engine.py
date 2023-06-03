@@ -18,7 +18,9 @@ class CompilationEngine:
         self.begin("class")
         self.process("class")
         self.classST = SymbolTable(name=t.identifier())
+        self.usage = "declared"
         self.process(t.identifier())
+        self.usage = "used"
         self.process('{')
 
         while t.tokenType() == JackTockenizer.KEYWORD and t.keyWord() in ['static', 'field']:
@@ -79,7 +81,10 @@ class CompilationEngine:
 
         # varName        
         assert t.tokenType() == JackTockenizer.IDENTIFIER
+        self.usage = "declared"
+        st.name = t.identifier()
         self.process(t.identifier())
+        self.usage = "usage"
 
         self.process('(')
         self.compileParameterList()
@@ -357,6 +362,7 @@ class CompilationEngine:
 
     def printIdentifier(self):
         st = None
+        usage = self.usage
         identifier = self.tokenizer.identifier()
         if self.methodST and identifier in self.methodST.st:
            st = self.methodST
@@ -364,12 +370,20 @@ class CompilationEngine:
            st = self.classST
 
         if st:
-         usage = self.usage
          identifier = {
             "name": identifier,
             "type": st.typeOf(identifier),
             "category": st.kindOf(identifier),
             "index": st.indexOf(identifier),
+            "usage": usage
+         }
+        else:
+         if identifier == self.classST.name   : category = "class"
+         elif self.methodST and identifier == self.methodST.name: category = "subroutine"
+         else                                 : category = "class"
+         identifier = {
+            "name": identifier,
+            "category": category,
             "usage": usage
          }
         self.printToken("identifier", str(identifier))
